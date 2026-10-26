@@ -1,0 +1,24 @@
+{
+  "type": "OBJECT",
+  "properties": {
+    "device": { "type": "STRING" },
+    "mode": { "type": "STRING" },
+    "settings": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "name": { "type": "STRING" },
+          "value": { "type": "STRING" },
+          "adjustable": { "type": "BOOLEAN" }
+        },
+        "required": ["name", "value", "adjustable"]
+      }
+    },
+    "steps": { "type": "ARRAY", "items": { "type": "STRING" } },
+    "cannot_change": { "type": "ARRAY", "items": { "type": "STRING" } },
+    "expect": { "type": "STRING" },
+    "tip": { "type": "STRING" }
+  },
+  "required": ["device", "mode", "settings", "steps", "cannot_change", "expect", "tip"]
+}

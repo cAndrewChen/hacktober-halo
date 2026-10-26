@@ -1,0 +1,41 @@
+{
+  "type": "OBJECT",
+  "properties": {
+    "headline": { "type": "STRING" },
+    "verdict": { "type": "STRING", "enum": ["GO", "MAYBE", "SKIP"] },
+    "summary": { "type": "STRING" },
+    "when": { "type": "STRING" },
+    "where": { "type": "STRING" },
+    "look": {
+      "type": "OBJECT",
+      "properties": {
+        "direction": { "type": "STRING" },
+        "height": { "type": "STRING" }
+      },
+      "required": ["direction", "height"]
+    },
+    "expect": {
+      "type": "OBJECT",
+      "properties": {
+        "naked_eye": { "type": "STRING" },
+        "camera": { "type": "STRING" }
+      },
+      "required": ["naked_eye", "camera"]
+    },
+    "camera": {
+      "type": "OBJECT",
+      "properties": {
+        "iso": { "type": "INTEGER" },
+        "shutter_s": { "type": "NUMBER" },
+        "aperture": { "type": "STRING" },
+        "focus": { "type": "STRING" },
+        "tip": { "type": "STRING" }
+      },
+      "required": ["iso", "shutter_s", "aperture", "focus", "tip"]
+    },
+    "why_tonight": { "type": "STRING" },
+    "checklist": { "type": "ARRAY", "items": { "type": "STRING" } }
+  },
+  "required": ["headline", "verdict", "summary", "when", "where", "look", "expect", "camera", "why_tonight", "checklist"],
+  "propertyOrdering": ["headline", "verdict", "summary", "when", "where", "look", "expect", "camera", "why_tonight", "checklist"]
+}

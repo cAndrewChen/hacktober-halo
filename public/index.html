@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Halo · Aurora guide</title>
+  <meta name="description" content="What tonight's aurora will actually look like from where you are — where to stand, when to look, and how to shoot it." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239fe830' stroke-width='2.5' stroke-linecap='round'><path d='M4 16a8 8 0 0 1 16 0'/><path d='M2 20h20'/></svg>" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <!-- Mark: the aurora's arc over the horizon line. -->
+      <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M7.5 16a4.5 4.5 0 0 1 9 0" opacity=".5"/><path d="M2 20h20"/></svg>
+      <div>
+        <h1>Halo</h1>
+        <p class="tag">What you'll <em>actually</em> see tonight.</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <form id="search" class="search" autocomplete="off">
+        <input id="q" type="search" placeholder="Search a place…" aria-label="Search a place" />
+        <ul id="results" class="results" hidden></ul>
+      </form>
+      <button id="locate" class="btn ghost" type="button" title="Use my location"><span data-icon="crosshair"></span> <span id="locate-label">My location</span></button>
+      <div class="device-wrap">
+        <button id="device-btn" class="btn ghost" type="button" aria-expanded="false" aria-controls="device-panel"><span data-icon="camera"></span> <span id="device-label">Your camera</span></button>
+        <form id="device-panel" class="device-panel" hidden>
+          <h4>Your camera</h4>
+          <p class="muted small-text">Halo tailors the camera view and settings to what your device can actually do.</p>
+          <label>Type
+            <select id="device-type"></select>
+          </label>
+          <label>Exact model <span class="muted">(optional)</span>
+            <input id="device-model" type="text" maxlength="60" placeholder="e.g. iPhone 15 Pro, Pixel 8, Canon R6" />
+          </label>
+          <label class="check"><input id="device-tripod" type="checkbox" /> I have a tripod (or something steady to rest it on)</label>
+          <button class="btn" type="submit">Save</button>
+        </form>
+      </div>
+      <div class="seg" role="tablist" aria-label="Mode">
+        <button role="tab" data-mode="live" aria-selected="true">Tonight</button>
+        <button role="tab" data-mode="replay" aria-selected="false">Replay May 10, 2024 storm</button>
+      </div>
+      <div class="seg" role="tablist" aria-label="Gemma source">
+        <button type="button" role="tab" data-gemma="local" aria-selected="true">Local</button>
+        <button type="button" role="tab" data-gemma="api" aria-selected="false">API key</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <p id="place" class="place">—</p>
+    <div id="error" class="error" hidden></div>
+
+    <section class="grid">
+      <!-- Score -->
+      <article class="card score-card" aria-live="polite">
+        <div class="score-head">
+          <div class="score-num"><span id="score">–</span><small>/ 50</small></div>
+          <div>
+            <span id="verdict" class="pill">…</span>
+            <h2 id="band">Loading tonight's sky…</h2>
+            <p id="band-meaning" class="muted"></p>
+          </div>
+        </div>
+        <div id="scale" class="scale" aria-label="Halo Score scale"></div>
+        <p class="note">The <strong>Halo Score</strong> rates tonight from 0 to 50. It combines how close the aurora gets, clouds, darkness and moonlight. <strong>It is not a percent chance.</strong></p>
+        <p id="compare" class="compare"></p>
+      </article>
+
+      <!-- What you'll see -->
+      <article class="card sky-card">
+        <div class="card-head">
+          <h3>What you'll see</h3>
+          <div class="seg small" role="tablist" aria-label="View">
+            <button role="tab" data-view="eye" aria-selected="true">Your eyes</button>
+            <button role="tab" data-view="camera" aria-selected="false" id="view-camera">Your camera</button>
+          </div>
+        </div>
+        <div class="sky-frame">
+          <div id="dome" class="dome" aria-label="360° view of tonight's sky. Drag to look around, scroll to zoom."></div>
+          <div class="dome-hud">
+            <span id="dome-heading" class="hud-chip">Facing north · 10° up</span>
+            <button id="face-aurora" class="hud-chip btn-chip" type="button"><span data-icon="rotate"></span> Face the aurora</button>
+          </div>
+          <div id="scene-toggle" class="seg small scene-toggle" role="tablist" aria-label="Viewpoint" hidden>
+            <button role="tab" data-scene="home" id="scene-home" aria-selected="true">From here</button>
+            <button role="tab" data-scene="spot" id="scene-spot" aria-selected="false">From best spot</button>
+          </div>
+          <span class="dome-hint">Drag to look around · scroll or pinch to zoom · 1 fist at arm's length ≈ 10°</span>
+          <span id="dome-loading" class="dome-loading" hidden>Grok is painting your sky…</span>
+        </div>
+        <p id="sky-caption" class="muted small-text"></p>
+      </article>
+
+      <!-- Gemma plan -->
+      <article class="card plan-card">
+        <div class="card-head">
+          <h3>Tonight's plan</h3>
+          <span id="plan-source" class="badge">Gemma is thinking…</span>
+        </div>
+        <h4 id="plan-headline" class="plan-headline shimmer">&nbsp;</h4>
+        <p id="plan-summary" class="muted"></p>
+        <dl class="facts">
+          <div><dt>When</dt><dd id="plan-when">…</dd></div>
+          <div><dt>Where</dt><dd id="plan-where">…</dd></div>
+          <div><dt>Look</dt><dd id="plan-look">…</dd></div>
+          <div><dt>Eyes vs. camera</dt><dd id="plan-expect">…</dd></div>
+        </dl>
+        <h5>Checklist</h5>
+        <ul id="plan-checklist" class="checklist"></ul>
+      </article>
+
+      <!-- Device-specific camera settings (Gemma, halo-camera skill) -->
+      <article class="card camera-card">
+        <div class="card-head">
+          <h3>Shoot it with <span id="cam-device">your camera</span></h3>
+          <span id="cam-source" class="badge">Gemma is thinking…</span>
+        </div>
+        <p id="cam-mode" class="cam-mode shimmer">&nbsp;</p>
+        <table class="settings">
+          <tbody id="cam-settings"></tbody>
+        </table>
+        <h5>Step by step</h5>
+        <ol id="cam-steps" class="steps"></ol>
+        <p id="cam-cannot" class="muted small-text"></p>
+        <p id="cam-expect" class="cam-expect"></p>
+        <p id="cam-tip" class="muted small-text"></p>
+        <button id="cam-change" class="btn ghost small" type="button">Change camera</button>
+      </article>
+
+      <!-- Timeline -->
+      <article class="card timeline-card">
+        <div class="card-head">
+          <h3>Tonight, hour by hour</h3>
+          <span class="muted small-text">at your location</span>
+        </div>
+        <div id="timeline" class="timeline"></div>
+        <p id="timeline-note" class="muted small-text"></p>
+      </article>
+
+      <!-- Map -->
+      <article class="card map-card">
+        <div class="card-head">
+          <h3>Aurora map</h3>
+          <div class="seg small" role="tablist" aria-label="Map">
+            <button role="tab" data-map="globe" aria-selected="true">Globe</button>
+            <button role="tab" data-map="nearby" aria-selected="false">Where to go</button>
+          </div>
+          <button id="cloud-toggle" class="btn ghost small" type="button" aria-pressed="false"><span data-icon="cloud"></span> <span id="cloud-label">Satellite clouds: off</span></button>
+          <a id="directions" class="btn small" target="_blank" rel="noopener" hidden>Directions ↗</a>
+        </div>
+        <div class="map-stack">
+          <div id="globe" class="map globe"></div>
+          <div id="map" class="map" hidden></div>
+          <div id="map-legend" class="legend"></div>
+        </div>
+        <p id="map-note" class="muted small-text"></p>
+      </article>
+
+      <!-- Why tonight -->
+      <article class="card why-card">
+        <h3>Why tonight?</h3>
+        <p id="why" class="why"></p>
+        <ul id="backstory" class="backstory"></ul>
+        <p id="backstory-source" class="muted small-text"></p>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    Data: NOAA SWPC (OVATION, Kp), GFZ Potsdam (Kp history), NASA DONKI, Open-Meteo (clouds). Plan by Gemma 4. Sky images by Grok Imagine.
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

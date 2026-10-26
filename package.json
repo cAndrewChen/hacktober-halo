@@ -1,0 +1,14 @@
+{
+  "name": "halo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Halo — an aurora guide for first-timers: what you'll actually see, where to stand, and how to shoot it.",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env server.js",
+    "test": "node --env-file=.env scripts/smoke.js"
+  },
+  "engines": {
+    "node": ">=20.6"
+  }
+}
