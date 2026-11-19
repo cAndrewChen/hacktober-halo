@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "test": "node --env-file=.env scripts/smoke.js"
+    "test": "node --env-file=.env scripts/smoke.js",
+    "sky-library": "node --env-file=.env scripts/sky-library.js"
   },
   "engines": {
     "node": ">=20.6"

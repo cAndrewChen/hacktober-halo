@@ -93,7 +93,7 @@ function loadDeviceViews(req = state.req) {
 
 const skyKey = () => `${state.scene}:${state.view}`;
 
-/** Fetch the Grok panorama for the current scene + view, once (each costs an image). */
+/** Fetch the closest pre-rendered panorama for the current scene + view, once. */
 function ensureSkyImage(req = state.req) {
   const key = skyKey(), [scene, view] = key.split(':');
   if (state.grok[key]) { $('dome-loading').hidden = true; return; }
@@ -104,7 +104,7 @@ function ensureSkyImage(req = state.req) {
       if (req !== state.req) return;
       if (!s.image) { state.grok[key] = { failed: s.reason }; if (skyKey() === key) renderSky(); return; }
       const img = new Image();
-      img.onload = () => { if (req === state.req) { state.grok[key] = { img }; if (skyKey() === key) renderSky(); } };
+      img.onload = () => { if (req === state.req) { state.grok[key] = { img, shift: s.shift_deg, flip: s.flip }; if (skyKey() === key) renderSky(); } };
       img.src = s.image;
     })
     .catch(() => { delete state.grok[key]; })
@@ -157,7 +157,7 @@ function renderSky(resetView = false) {
   const grok = state.grok[skyKey()];
   const s = sceneForecast();
   const canvas = document.createElement('canvas');
-  if (grok?.img) paintImage(canvas, grok.img);
+  if (grok?.img) paintImage(canvas, grok.img, grok.shift, grok.flip);
   else paintPanorama(canvas, s, view, deviceGain());
   paintOverlay(canvas, s);
   dome.setPanorama(canvas, s.look.bearing_deg);
@@ -169,7 +169,7 @@ function captionSky(f, view, grok) {
   const from = state.scene === 'spot' ? `From the best spot (${state.forecast.best_spot.distance_mi} mi ${state.forecast.best_spot.direction}), ` : 'From here, ';
   const where = f.look.overhead ? 'overhead' : `up to ${f.look.top_elevation_deg}° above the ${f.look.direction} horizon`;
   const who = view === 'eye' ? 'your eyes' : `${deviceName()}${state.device.tripod ? ' on a tripod' : ' handheld'}`;
-  const src = grok?.img ? 'Grok Imagine 360° panorama' : `Halo's own 360° render${grok?.failed ? ' (Grok Imagine unavailable)' : ''}`;
+  const src = grok?.img ? 'Closest pre-rendered 360° panorama (Grok Imagine)' : `Halo's own 360° render${grok?.failed ? ' (no matching panorama)' : ''}`;
   const when = `${from}${f.view.label} (${f.view.why}): sun ${Math.abs(f.view.sun_alt)}° ${f.view.sun_alt >= 0 ? 'above' : 'below'} the horizon (${f.view.phase}), ${f.view.cloud_pct}% cloud.`;
   $('sky-caption').textContent = f.expect.level === 'none'
     ? `${when} No aurora visible${f.expect.reason ? `: ${f.expect.reason}` : ''}. ${src}.`

@@ -162,8 +162,8 @@ function paintClouds(ctx, pct, sky, center, hill) {
   ctx.restore();
 }
 
-/** Draw a Grok panorama into the canvas and hide its left/right seam. */
-export function paintImage(canvas, image) {
+/** Draw a library panorama, hide its left/right seam, then rotate (shiftDeg) or mirror it so the sun's glow lands on its real bearing. */
+export function paintImage(canvas, image, shiftDeg = 0, flip = false) {
   canvas.width = PANO_W; canvas.height = PANO_H;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(image, 0, 0, PANO_W, PANO_H);
@@ -178,6 +178,16 @@ export function paintImage(canvas, image) {
     }
   }
   ctx.putImageData(right, PANO_W - w, 0);
+  if (!shiftDeg && !flip) return;
+  const src = document.createElement('canvas');
+  src.width = PANO_W; src.height = PANO_H;
+  src.getContext('2d').drawImage(canvas, 0, 0);
+  ctx.save();
+  if (flip) { ctx.translate(PANO_W, 0); ctx.scale(-1, 1); } // mirror about the center (the aurora's bearing)
+  const dx = (((shiftDeg / 360) * PANO_W) % PANO_W + PANO_W) % PANO_W;
+  ctx.drawImage(src, dx, 0);
+  ctx.drawImage(src, dx - PANO_W, 0);
+  ctx.restore();
 }
 
 const POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];

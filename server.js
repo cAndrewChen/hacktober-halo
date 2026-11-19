@@ -12,7 +12,7 @@ import { geocode, satellite } from './lib/sources.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = fileURLToPath(new URL('./public/', import.meta.url));
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon' };
 
 // Forecasts are cached briefly so /api/plan and /api/sky reuse the numbers /api/forecast showed.
 const forecasts = new Map();
@@ -77,7 +77,7 @@ const routes = {
   '/api/geocode': async (q) => geocode(q.get('q') ?? ''),
   '/api/status': async () => {
     const g = await gemmaStatus();
-    return { gemma: g.gemma, grok: !!process.env.XAI_API_KEY, gemma_local: g.local, gemma_api: g.api, gemma_model: g.model };
+    return { gemma: g.gemma, gemma_local: g.local, gemma_api: g.api, gemma_model: g.model };
   },
 };
 
@@ -109,5 +109,5 @@ const server = createServer(async (req, res) => {
 const gemma = await gemmaStatus();
 server.listen(PORT, () => {
   console.log(`Halo running at http://localhost:${PORT}`);
-  console.log(`  Gemma: ${gemma.label}   Grok Imagine: ${process.env.XAI_API_KEY ? 'on' : 'off (set XAI_API_KEY — canvas fallback in use)'}`);
+  console.log(`  Gemma: ${gemma.label}`);
 });
