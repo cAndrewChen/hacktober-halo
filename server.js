@@ -42,12 +42,14 @@ function cached(kind, q, make, extraKey = '') {
   return data;
 }
 
+// The API is read-only GETs, so any origin (the GitHub Pages frontend) may call it.
+const CORS = { 'Access-Control-Allow-Origin': '*' };
 const send = (res, status, body) => {
   if (Buffer.isBuffer(body)) {
-    res.writeHead(status, { 'Content-Type': 'image/png', 'Cache-Control': 'max-age=600' });
+    res.writeHead(status, { 'Content-Type': 'image/png', 'Cache-Control': 'max-age=600', ...CORS });
     return res.end(body);
   }
-  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.writeHead(status, { 'Content-Type': 'application/json', ...CORS });
   res.end(JSON.stringify(body));
 };
 

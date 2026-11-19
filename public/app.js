@@ -21,8 +21,11 @@ const qs = () => `lat=${state.lat}&lon=${state.lon}&mode=${state.mode}`;
 const gemmaQs = () => `backend=${state.gemma}`;
 const deviceQs = () => `device=${state.device.id}&tripod=${state.device.tripod ? 1 : 0}&model=${encodeURIComponent(state.device.model)}`;
 
+// GitHub Pages only serves files, so there the API lives on another host (index.html's halo-api meta).
+const API = location.hostname.endsWith('github.io') ? document.querySelector('meta[name="halo-api"]').content.replace(/\/$/, '') : '';
+
 async function api(path) {
-  const res = await fetch(path);
+  const res = await fetch(API + path);
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || res.statusText);
   return body;
@@ -322,7 +325,8 @@ function renderGlobe(f) {
 // ----- Satellite clouds on the globe (NASA GIBS via /api/satellite) -----
 
 let cloudsFor = null, cloudInfo = '';
-const loadImage = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+// crossOrigin: satellite images may come from the API host, and WebGL refuses untagged cross-origin textures.
+const loadImage = (src) => new Promise((res) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
 
 /**
  * Live: geostationary infrared (latest, every 10 min) + last night's MODIS to fill the Europe/Africa gap.
@@ -337,8 +341,8 @@ async function loadSatelliteClouds(f) {
   updateCloudLegend();
   const yesterday = new Date(Date.now() - 86400e3).toISOString().slice(0, 10);
   const [ir, modis] = await Promise.all([
-    f.mode === 'live' ? loadImage('/api/satellite?kind=ir') : null,
-    loadImage(`/api/satellite?kind=modis&time=${f.mode === 'live' ? yesterday : '2024-05-11'}`),
+    f.mode === 'live' ? loadImage(API + '/api/satellite?kind=ir') : null,
+    loadImage(`${API}/api/satellite?kind=modis&time=${f.mode === 'live' ? yesterday : '2024-05-11'}`),
   ]);
   if (cloudsFor !== key) return;
   if (!ir && !modis) { cloudInfo = 'Satellite clouds unavailable right now.'; updateCloudLegend(); return; }
