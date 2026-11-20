@@ -9,34 +9,35 @@ import { plan, cameraAdvice, gemmaStatus } from './lib/gemma.js';
 import { sky } from './lib/grok.js';
 import { deviceFrom, deviceList } from './lib/devices.js';
 import { geocode, satellite } from './lib/sources.js';
+import { BoundedCache, RateLimiter } from './lib/cache.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = fileURLToPath(new URL('./public/', import.meta.url));
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon' };
 
 // Forecasts are cached briefly so /api/plan and /api/sky reuse the numbers /api/forecast showed.
-const forecasts = new Map();
+// Caches are size-capped so a stream of random coordinates can't exhaust memory.
+const CACHE_TTL = 5 * 60e3;
+const forecasts = new BoundedCache(500, CACHE_TTL);
 async function forecastFor(q) {
   const lat = Number(q.get('lat')), lon = Number(q.get('lon'));
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw Object.assign(new Error('lat/lon required'), { status: 400 });
   const mode = q.get('mode') === 'replay' ? 'replay' : 'live';
   const key = `${lat.toFixed(3)},${lon.toFixed(3)},${mode}`;
   const hit = forecasts.get(key);
-  if (hit && Date.now() - hit.at < 5 * 60e3) return hit.data;
-  const data = buildForecast({ lat, lon, mode });
-  forecasts.set(key, { at: Date.now(), data });
+  if (hit) return hit;
+  const data = forecasts.set(key, buildForecast({ lat, lon, mode }));
   data.catch(() => forecasts.delete(key));
   return data;
 }
 
 // Plans and sky images cost API quota, so cache them per forecast (same key and lifetime).
-const derived = new Map();
+const derived = new BoundedCache(1000, CACHE_TTL);
 function cached(kind, q, make, extraKey = '') {
   const key = `${kind}:${Number(q.get('lat')).toFixed(3)},${Number(q.get('lon')).toFixed(3)},${q.get('mode')}|${extraKey}`;
   const hit = derived.get(key);
-  if (hit && Date.now() - hit.at < 5 * 60e3) return hit.data;
-  const data = forecastFor(q).then(make);
-  derived.set(key, { at: Date.now(), data });
+  if (hit) return hit;
+  const data = derived.set(key, forecastFor(q).then(make));
   // Don't keep fallbacks: the next request should try the real API again.
   data.then((r) => (r.source === 'template' || r.source === 'none') && derived.delete(key), () => derived.delete(key));
   return data;
@@ -83,10 +84,24 @@ const routes = {
   },
 };
 
+// Per-client limits. Routes that can call Gemma get a tighter budget; lib/gemma.js also caps
+// Gemini calls globally, which holds even if a client fakes X-Forwarded-For.
+const MODEL_ROUTES = new Set(['/api/plan', '/api/camera']);
+const apiLimiter = new RateLimiter(120, 60e3);
+const modelLimiter = new RateLimiter(20, 60e3);
+// Behind Render's proxy the client is the first X-Forwarded-For entry; locally it's the socket.
+const clientIp = (req) => (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket.remoteAddress || '';
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const route = routes[url.pathname];
   if (route) {
+    const ip = clientIp(req);
+    const limiter = MODEL_ROUTES.has(url.pathname) ? modelLimiter : apiLimiter;
+    if (!limiter.allow(ip)) {
+      res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '60', ...CORS });
+      return res.end(JSON.stringify({ error: 'too many requests, try again in a minute' }));
+    }
     const t = Date.now();
     try {
       send(res, 200, await route(url.searchParams));
